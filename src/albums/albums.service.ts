@@ -1,12 +1,26 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { Album } from './album.interface';
 import { CreateAlbumDto } from './dto/create-album.dto';
 import { UpdateAlbumDto } from './dto/update-album.dto';
+import { TracksService } from '../tracks/tracks.service';
+import { FavoritesService } from '../favorites/favorites.service';
 
 @Injectable()
 export class AlbumsService {
   private albums: Album[] = [];
+
+  constructor(
+    @Inject(forwardRef(() => TracksService))
+    private readonly tracksService: TracksService,
+    @Inject(forwardRef(() => FavoritesService))
+    private readonly favoritesService: FavoritesService,
+  ) {}
 
   findAll(): Album[] {
     return this.albums;
@@ -53,6 +67,21 @@ export class AlbumsService {
     if (albumIndex === -1) {
       throw new NotFoundException(`Album with id ${id} not found`);
     }
+
+    // Remove album from the array
     this.albums.splice(albumIndex, 1);
+
+    // Cascade delete: remove from favorites and set references to null
+    this.favoritesService.removeAlbumFromFavoritesIfExists(id);
+    this.tracksService.removeAlbumReferences(id);
+  }
+
+  // Method to remove artist references when an artist is deleted
+  removeArtistReferences(artistId: string): void {
+    this.albums.forEach((album) => {
+      if (album.artistId === artistId) {
+        album.artistId = null;
+      }
+    });
   }
 }

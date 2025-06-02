@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { FavoritesResponse, Favorites } from './favorites.interface';
 import { TracksService } from '../tracks/tracks.service';
@@ -17,8 +19,11 @@ export class FavoritesService {
   };
 
   constructor(
+    @Inject(forwardRef(() => TracksService))
     private readonly tracksService: TracksService,
+    @Inject(forwardRef(() => AlbumsService))
     private readonly albumsService: AlbumsService,
+    @Inject(forwardRef(() => ArtistsService))
     private readonly artistsService: ArtistsService,
   ) {}
 
@@ -94,6 +99,14 @@ export class FavoritesService {
     this.favorites.tracks.splice(index, 1);
   }
 
+  // Method to remove track from favorites without throwing error if not found
+  removeTrackFromFavoritesIfExists(id: string): void {
+    const index = this.favorites.tracks.indexOf(id);
+    if (index !== -1) {
+      this.favorites.tracks.splice(index, 1);
+    }
+  }
+
   addAlbumToFavorites(id: string): void {
     try {
       this.albumsService.findOne(id);
@@ -116,6 +129,14 @@ export class FavoritesService {
     this.favorites.albums.splice(index, 1);
   }
 
+  // Method to remove album from favorites without throwing error if not found
+  removeAlbumFromFavoritesIfExists(id: string): void {
+    const index = this.favorites.albums.indexOf(id);
+    if (index !== -1) {
+      this.favorites.albums.splice(index, 1);
+    }
+  }
+
   addArtistToFavorites(id: string): void {
     try {
       this.artistsService.findOne(id);
@@ -136,5 +157,13 @@ export class FavoritesService {
       throw new NotFoundException('Artist is not in favorites');
     }
     this.favorites.artists.splice(index, 1);
+  }
+
+  // Method to remove artist from favorites without throwing error if not found
+  removeArtistFromFavoritesIfExists(id: string): void {
+    const index = this.favorites.artists.indexOf(id);
+    if (index !== -1) {
+      this.favorites.artists.splice(index, 1);
+    }
   }
 }
