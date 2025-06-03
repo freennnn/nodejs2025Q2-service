@@ -8,7 +8,7 @@
 ## Downloading
 
 ```bash
-git clone {repository URL}
+git clone <https://github.com/freennnn/nodejs2025Q2-service>
 ```
 
 ## Installing NPM modules
