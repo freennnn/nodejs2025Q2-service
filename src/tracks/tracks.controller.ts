@@ -9,6 +9,7 @@ import {
   HttpStatus,
   HttpCode,
   BadRequestException,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { validate as isUUID } from 'uuid';
 import { TracksService } from './tracks.service';
@@ -26,11 +27,7 @@ export class TracksController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string): Track {
-    if (!isUUID(id)) {
-      throw new BadRequestException('Invalid track ID format');
-    }
-
+  findOne(@Param('id', ParseUUIDPipe) id: string): Track {
     return this.tracksService.findOne(id);
   }
 

@@ -8,9 +8,8 @@ import {
   Param,
   HttpStatus,
   HttpCode,
-  BadRequestException,
+  ParseUUIDPipe,
 } from '@nestjs/common';
-import { validate as isUUID } from 'uuid';
 import { ArtistsService } from './artists.service';
 import { CreateArtistDto } from './dto/create-artist.dto';
 import { UpdateArtistDto } from './dto/update-artist.dto';
@@ -26,11 +25,7 @@ export class ArtistsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string): Artist {
-    if (!isUUID(id)) {
-      throw new BadRequestException('Invalid artist ID format');
-    }
-
+  findOne(@Param('id', ParseUUIDPipe) id: string): Artist {
     return this.artistsService.findOne(id);
   }
 
@@ -42,23 +37,15 @@ export class ArtistsController {
 
   @Put(':id')
   update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updateArtistDto: UpdateArtistDto,
   ): Artist {
-    if (!isUUID(id)) {
-      throw new BadRequestException('Invalid artist ID format');
-    }
-
     return this.artistsService.update(id, updateArtistDto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string): void {
-    if (!isUUID(id)) {
-      throw new BadRequestException('Invalid artist ID format');
-    }
-
+  remove(@Param('id', ParseUUIDPipe) id: string): void {
     this.artistsService.remove(id);
   }
 }
