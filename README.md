@@ -23,9 +23,12 @@ npm install
 npm start
 ```
 
-After starting the app on port (4000 as default) you can open
+To view interactive API documentation, you can:
+
+1. **Online**: Copy `doc/api.yaml` content to <https://editor.swagger.io/>
+2. **VS Code**: Install "Swagger Viewer" extension and preview the YAML file
+3. **Browser**: After starting the app on port (4000 as default) you can open
 in your browser OpenAPI documentation by typing <http://localhost:4000/doc/>.
-For more information about OpenAPI/Swagger please visit <https://swagger.io/>.
 
 ## API Endpoints
 

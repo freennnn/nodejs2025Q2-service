@@ -1,7 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import * as dotenv from 'dotenv';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as yaml from 'js-yaml';
 
 dotenv.config();
 
@@ -22,8 +26,20 @@ async function bootstrap() {
     }),
   );
 
+  // Setup Swagger UI with existing api.yaml
+  try {
+    const apiYamlPath = path.join(__dirname, '..', 'doc', 'api.yaml');
+    const apiYaml = fs.readFileSync(apiYamlPath, 'utf8');
+    const apiDocument = yaml.load(apiYaml) as any;
+
+    SwaggerModule.setup('doc', app, apiDocument);
+    console.log('Swagger UI available at http://localhost:4000/doc');
+  } catch (error) {
+    console.warn('Could not load api.yaml for Swagger UI:', error.message);
+  }
+
   const port = process.env.PORT || 4000;
   await app.listen(port);
-  console.log(`Application is running on port ${port}`);
+  console.log(`🚀 Application is running on port ${port}`);
 }
 bootstrap();
