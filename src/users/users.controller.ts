@@ -22,20 +22,20 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  findAll(): UserResponseDto[] {
-    const users = this.usersService.findAll();
+  async findAll(): Promise<UserResponseDto[]> {
+    const users = await this.usersService.findAll();
     return users.map((user) =>
       plainToClass(UserResponseDto, user, { excludeExtraneousValues: false }),
     );
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string): UserResponseDto {
+  async findOne(@Param('id') id: string): Promise<UserResponseDto> {
     if (!isUUID(id)) {
       throw new BadRequestException('Invalid user ID format');
     }
 
-    const user = this.usersService.findOne(id);
+    const user = await this.usersService.findOne(id);
     return plainToClass(UserResponseDto, user, {
       excludeExtraneousValues: false,
     });
@@ -43,23 +43,23 @@ export class UsersController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createUserDto: CreateUserDto): UserResponseDto {
-    const user = this.usersService.create(createUserDto);
+  async create(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
+    const user = await this.usersService.create(createUserDto);
     return plainToClass(UserResponseDto, user, {
       excludeExtraneousValues: false,
     });
   }
 
   @Put(':id')
-  updatePassword(
+  async updatePassword(
     @Param('id') id: string,
     @Body() updatePasswordDto: UpdatePasswordDto,
-  ): UserResponseDto {
+  ): Promise<UserResponseDto> {
     if (!isUUID(id)) {
       throw new BadRequestException('Invalid user ID format');
     }
 
-    const user = this.usersService.updatePassword(id, updatePasswordDto);
+    const user = await this.usersService.updatePassword(id, updatePasswordDto);
     return plainToClass(UserResponseDto, user, {
       excludeExtraneousValues: false,
     });
@@ -67,11 +67,11 @@ export class UsersController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string): void {
+  async remove(@Param('id') id: string): Promise<void> {
     if (!isUUID(id)) {
       throw new BadRequestException('Invalid user ID format');
     }
 
-    this.usersService.remove(id);
+    await this.usersService.remove(id);
   }
 }
