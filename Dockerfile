@@ -1,10 +1,32 @@
-# Multi-stage build - TRULY OPTIMIZED for minimal production size
+# Multi-stage build - Supports both development and production
 FROM node:22.16.0-alpine AS base
 
 RUN apk add --no-cache dumb-init
 RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001 -G nodejs
 
-# Build stage - All dependencies
+# Development stage - Hot reloading with all dependencies
+FROM base AS development
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci  # Install ALL dependencies including devDependencies
+
+COPY prisma ./prisma
+RUN npx prisma generate
+
+COPY . .
+RUN chown -R nestjs:nodejs /app
+
+USER nestjs
+EXPOSE 4000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node --version || exit 1
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["npm", "run", "start:dev"]
+
+# Build stage - For production optimization
 FROM base AS builder
 
 WORKDIR /app

@@ -1,16 +1,15 @@
 version: '3.8'
 
-# Development Docker Compose - Builds Images Locally
-# Used for development and local testing with source code changes
+# Default Development Environment with Hot Reloading
 #
 # Usage:
-#   docker-compose up --build -d
+#   docker-compose up --build
 #
 # Features:
-#   - Builds optimized images from local source code
-#   - Supports live development with code changes
-#   - Local testing and debugging
-#   - Same production configuration but with local builds
+#   - Hot reloading on file changes in src/
+#   - Development mode with all dependencies
+#   - Volume mounts for live development
+#   - Auto-restart on code changes
 
 services:
   # PostgreSQL Database
@@ -27,6 +26,7 @@ services:
       - '5432:5432' # Standard PostgreSQL port
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - postgres_logs:/var/log/postgresql # Database logs in volume
     networks:
       - home-library-network
     healthcheck:
@@ -36,18 +36,29 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # NestJS Application
+  # NestJS Application with Hot Reloading
   app:
     build:
       context: .
       dockerfile: Dockerfile
+      target: development # Use development stage for hot reloading
     container_name: home-library-app
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - PORT=4000
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/home-library?schema=public
     ports:
       - '4000:4000' # Standard app port
+    volumes:
+      # Mount source code for hot reloading
+      - ./src:/app/src:ro # Source code (read-only)
+      - ./prisma:/app/prisma:ro # Prisma schema
+      - ./package.json:/app/package.json:ro # Package.json
+      - ./tsconfig.json:/app/tsconfig.json:ro # TypeScript config
+      - ./nest-cli.json:/app/nest-cli.json:ro # Nest CLI config
+      # Exclude node_modules to avoid conflicts
+      - /app/node_modules
+      - /app/dist
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,6 +86,8 @@ services:
 # Named volumes
 volumes:
   postgres_data:
+    driver: local
+  postgres_logs:
     driver: local
 
 # Custom network

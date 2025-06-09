@@ -21,10 +21,10 @@ The fastest way to run the application using pre-built images:
 
 ```bash
 # Download the docker-compose file
-curl -O https://raw.githubusercontent.com/freennnn/nodejs2025Q2-service/main/docker-compose.production.yml
+curl -O https://raw.githubusercontent.com/freennnn/nodejs2025Q2-service/main/docker-compose.prod.yml
 
 # Start the application
-docker-compose -f docker-compose.production.yml up -d
+docker-compose -f docker-compose.prod.yml up -d
 
 # Access the API
 curl http://localhost:4000/user
@@ -83,7 +83,7 @@ NODE_ENV=production
 PORT=4000
 DATABASE_URL=postgresql://postgres:postgres@postgres:5432/home-library?schema=public
 
-# Database
+# Database (in docker-compose)
 POSTGRES_DB=home-library
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
@@ -94,7 +94,7 @@ POSTGRES_PASSWORD=postgres
 #### 1. Docker Compose (Recommended for single machine)**
 
 ```bash
-docker-compose -f docker-compose.production.yml up -d
+docker-compose -f docker-compose.prod.yml up -d
 ```
 
 #### 2. Cloud Platforms**
@@ -109,30 +109,32 @@ docker-compose -f docker-compose.production.yml up -d
 **Clean, organized Docker configuration:**
 
 ```bash
-📦 Docker Configuration
-├── 🔧 docker-compose.yml              # Development (builds locally)
-├── 🚀 docker-compose.production.yml   # Production (uses Docker Hub)
-├── 📱 Dockerfile                      # Application image (446MB)
-├── 🗄️  Dockerfile.postgres             # Database image (391MB)
+📦 Docker Configuration (Clean & Standard)
+├── 🔧 docker-compose.yml              # Development with hot reloading
+├── 🚀 docker-compose.prod.yml         # Production (uses Docker Hub)
+├── 📱 Dockerfile                      # Multi-stage (dev + prod)
+├── 🗄️  Dockerfile.postgres             # Database image (391MB)  
 └── 🚫 .dockerignore                   # Build optimization
 ```
 
 ### Usage Summary
 
-#### 🔧 Development Workflow
+#### 🔧 Development Workflow (with Hot Reloading)
 
 ```bash
-# Clone and develop locally
+# Clone and develop with automatic restart on file changes
 git clone https://github.com/freennnn/nodejs2025Q2-service.git
 cd nodejs2025Q2-service
 
-# Build and run from source
-docker-compose up --build -d
+# Start development with hot reloading (default)
+docker-compose up --build
 
-# View logs
+# Make changes to src/ files - app automatically restarts! 🔥
+
+# View logs (watch restart messages on file changes)
 docker-compose logs -f app
 
-# Stop and clean up
+# Stop development environment
 docker-compose down
 ```
 
@@ -140,13 +142,13 @@ docker-compose down
 
 ```bash
 # Quick deployment (no build required)
-curl -O https://raw.githubusercontent.com/freennnn/nodejs2025Q2-service/main/docker-compose.production.yml
-docker-compose -f docker-compose.production.yml up -d
+curl -O https://raw.githubusercontent.com/freennnn/nodejs2025Q2-service/main/docker-compose.prod.yml
+docker-compose -f docker-compose.prod.yml up -d
 
 # Or clone and use production compose
 git clone https://github.com/freennnn/nodejs2025Q2-service.git
 cd nodejs2025Q2-service
-docker-compose -f docker-compose.production.yml up -d
+docker-compose -f docker-compose.prod.yml up -d
 ```
 
 ## Security & Monitoring
@@ -317,11 +319,11 @@ docker pull freennnn/nodejs2025q2-service-app:v1.2.3
 #### Step 4: Update Production Compose Files**
 
 ```bash
-# Update docker-compose.production.yml with new version
-sed -i 's/freennnn\/nodejs2025q2-service-app:latest/freennnn\/nodejs2025q2-service-app:v1.2.3/' docker-compose.production.yml
+# Update docker-compose.prod.yml with new version
+sed -i 's/freennnn\/nodejs2025q2-service-app:latest/freennnn\/nodejs2025q2-service-app:v1.2.3/' docker-compose.prod.yml
 
 # Commit the updated compose file
-git add docker-compose.production.yml
+git add docker-compose.prod.yml
 git commit -m "deploy: update production to v1.2.3"
 git push origin main
 ```
@@ -349,32 +351,32 @@ npm run start:dev  # Test app with new schema
 
 ```bash
 # 1. Deploy migration-only version first
-docker-compose -f docker-compose.production.yml exec app npx prisma migrate deploy
+docker-compose -f docker-compose.prod.yml exec app npx prisma migrate deploy
 
 # 2. Verify schema update
-docker-compose -f docker-compose.production.yml exec postgres psql -U postgres -d home-library -c "\dt"
+docker-compose -f docker-compose.prod.yml exec postgres psql -U postgres -d home-library -c "\dt"
 
 # 3. Deploy new application version
-docker-compose -f docker-compose.production.yml pull app
-docker-compose -f docker-compose.production.yml up -d app
+docker-compose -f docker-compose.prod.yml pull app
+docker-compose -f docker-compose.prod.yml up -d app
 ```
 
 #### Option B: Maintenance Window Migration**
 
 ```bash
 # 1. Stop application (maintenance mode)
-docker-compose -f docker-compose.production.yml stop app
+docker-compose -f docker-compose.prod.yml stop app
 
 # 2. Backup database
-docker-compose -f docker-compose.production.yml exec postgres pg_dump -U postgres home-library > backup_$(date +%Y%m%d_%H%M%S).sql
+docker-compose -f docker-compose.prod.yml exec postgres pg_dump -U postgres home-library > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # 3. Run migrations
-docker-compose -f docker-compose.production.yml exec postgres psql -U postgres -d home-library -c "SELECT version();"
-docker-compose -f docker-compose.production.yml pull app
-docker-compose -f docker-compose.production.yml up -d
+docker-compose -f docker-compose.prod.yml exec postgres psql -U postgres -d home-library -c "SELECT version();"
+docker-compose -f docker-compose.prod.yml pull app
+docker-compose -f docker-compose.prod.yml up -d
 
 # 4. Verify migration success
-docker-compose -f docker-compose.production.yml logs app | grep "migration"
+docker-compose -f docker-compose.prod.yml logs app | grep "migration"
 curl http://localhost:4000/user  # Test API
 ```
 
@@ -411,19 +413,19 @@ docker exec test-postgres-v16 psql -U postgres -d home-library -c "SELECT versio
 
 ```bash
 # 1. CRITICAL: Backup before upgrade
-docker-compose -f docker-compose.production.yml exec postgres pg_dumpall -U postgres > full_backup_$(date +%Y%m%d).sql
+docker-compose -f docker-compose.prod.yml exec postgres pg_dumpall -U postgres > full_backup_$(date +%Y%m%d).sql
 
 # 2. Stop application
-docker-compose -f docker-compose.production.yml down
+docker-compose -f docker-compose.prod.yml down
 
 # 3. Update image versions
-# Edit docker-compose.production.yml to use new postgres version
+# Edit docker-compose.prod.yml to use new postgres version
 
 # 4. Start with new version
-docker-compose -f docker-compose.production.yml up -d
+docker-compose -f docker-compose.prod.yml up -d
 
 # 5. Verify upgrade
-docker-compose -f docker-compose.production.yml exec postgres psql -U postgres -c "SELECT version();"
+docker-compose -f docker-compose.prod.yml exec postgres psql -U postgres -c "SELECT version();"
 ```
 
 ### Environment-Specific Versioning
@@ -439,7 +441,7 @@ docker-compose up --build -d
 
 ```bash
 # Use specific versions for testing
-docker-compose -f docker-compose.production.yml up -d
+docker-compose -f docker-compose.prod.yml up -d
 # Test with: freennnn/nodejs2025q2-service-app:v1.2.3-rc1
 ```
 
@@ -448,7 +450,7 @@ docker-compose -f docker-compose.production.yml up -d
 ```bash
 # Use stable, tested versions only
 # Example: freennnn/nodejs2025q2-service-app:v1.2.3
-docker-compose -f docker-compose.production.yml up -d
+docker-compose -f docker-compose.prod.yml up -d
 ```
 
 ### Rollback Procedures
@@ -457,21 +459,21 @@ docker-compose -f docker-compose.production.yml up -d
 
 ```bash
 # Quick rollback to previous version
-docker-compose -f docker-compose.production.yml stop app
+docker-compose -f docker-compose.prod.yml stop app
 docker pull freennnn/nodejs2025q2-service-app:v1.2.2  # Previous version
 docker tag freennnn/nodejs2025q2-service-app:v1.2.2 freennnn/nodejs2025q2-service-app:latest
-docker-compose -f docker-compose.production.yml up -d app
+docker-compose -f docker-compose.prod.yml up -d app
 ```
 
 **Database Rollback:**
 
 ```bash
 # Restore from backup (if migration failed)
-docker-compose -f docker-compose.production.yml stop app
-docker-compose -f docker-compose.production.yml exec postgres psql -U postgres -c "DROP DATABASE \"home-library\";"
-docker-compose -f docker-compose.production.yml exec postgres psql -U postgres -c "CREATE DATABASE \"home-library\";"
-cat backup_YYYYMMDD_HHMMSS.sql | docker-compose -f docker-compose.production.yml exec -T postgres psql -U postgres home-library
-docker-compose -f docker-compose.production.yml up -d
+docker-compose -f docker-compose.prod.yml stop app
+docker-compose -f docker-compose.prod.yml exec postgres psql -U postgres -c "DROP DATABASE \"home-library\";"
+docker-compose -f docker-compose.prod.yml exec postgres psql -U postgres -c "CREATE DATABASE \"home-library\";"
+cat backup_YYYYMMDD_HHMMSS.sql | docker-compose -f docker-compose.prod.yml exec -T postgres psql -U postgres home-library
+docker-compose -f docker-compose.prod.yml up -d
 ```
 
 ### Manual Build and Push
