@@ -2,7 +2,17 @@
 # No local building required - pulls optimized images from Docker Hub
 #
 # Usage:
-#   docker-compose -f docker-compose.production.yml up -d
+#   docker-compose -f docker-compose.prod.yml up -d
+#
+# Required Environment Variables:
+#   POSTGRES_DB (default: home-library)
+#   POSTGRES_USER (default: postgres)
+#   POSTGRES_PASSWORD (default: postgres)
+#   POSTGRES_PORT (default: 5432)
+#   PORT (default: 4000)
+#   NODE_ENV (default: production)
+#   POSTGRES_IMAGE (default: freennnn/nodejs2025q2-service-postgres:latest)
+#   APP_IMAGE (default: freennnn/nodejs2025q2-service-app:latest)
 #
 # Features:
 #   - Uses pre-built optimized images from Docker Hub
@@ -13,21 +23,25 @@
 services:
   # PostgreSQL Database from Docker Hub
   postgres:
-    image: freennnn/nodejs2025q2-service-postgres:latest
-    container_name: home-library-postgres-prod
+    image: ${POSTGRES_IMAGE:-freennnn/nodejs2025q2-service-postgres:latest}
+    container_name: ${POSTGRES_CONTAINER_NAME:-home-library-postgres-prod}
     environment:
-      POSTGRES_DB: home-library
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-home-library}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      - '5432:5432' # Standard PostgreSQL port
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
-      - postgres_logs_prod:/var/log/postgresql # Database logs in volume
+      - postgres_logs_prod:/var/log/postgresql
     networks:
-      - home-library-network-prod
+      - ${NETWORK_NAME:-home-library-network-prod}
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d home-library']
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-home-library}',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -35,19 +49,19 @@ services:
 
   # NestJS Application from Docker Hub
   app:
-    image: freennnn/nodejs2025q2-service-app:latest
-    container_name: home-library-app-prod
+    image: ${APP_IMAGE:-freennnn/nodejs2025q2-service-app:latest}
+    container_name: ${APP_CONTAINER_NAME:-home-library-app-prod}
     environment:
-      - NODE_ENV=production
-      - PORT=4000
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/home-library?schema=public
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${PORT:-4000}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-home-library}?schema=public}
     ports:
-      - '4000:4000' # Standard app port
+      - '${PORT:-4000}:${PORT:-4000}'
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      - home-library-network-prod
+      - ${NETWORK_NAME:-home-library-network-prod}
     healthcheck:
       test:
         [
@@ -56,7 +70,7 @@ services:
           '--no-verbose',
           '--tries=1',
           '--spider',
-          'http://localhost:4000/user',
+          'http://localhost:${PORT:-4000}/user',
           '||',
           'exit',
           '1',
@@ -78,3 +92,4 @@ volumes:
 networks:
   home-library-network-prod:
     driver: bridge
+    name: ${NETWORK_NAME:-home-library-network-prod}

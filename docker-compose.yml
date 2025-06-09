@@ -1,9 +1,15 @@
-version: '3.8'
-
 # Default Development Environment with Hot Reloading
 #
 # Usage:
 #   docker-compose up --build
+#
+# Required Environment Variables:
+#   POSTGRES_DB (default: home-library)
+#   POSTGRES_USER (default: postgres)
+#   POSTGRES_PASSWORD (default: postgres)
+#   POSTGRES_PORT (default: 5432)
+#   PORT (default: 4000)
+#   NODE_ENV (default: development)
 #
 # Features:
 #   - Hot reloading on file changes in src/
@@ -17,20 +23,24 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.postgres
-    container_name: home-library-postgres
+    container_name: ${POSTGRES_CONTAINER_NAME:-home-library-postgres}
     environment:
-      POSTGRES_DB: home-library
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-home-library}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      - '5432:5432' # Standard PostgreSQL port
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - postgres_logs:/var/log/postgresql # Database logs in volume
+      - postgres_logs:/var/log/postgresql
     networks:
-      - home-library-network
+      - ${NETWORK_NAME:-home-library-network}
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d home-library']
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-home-library}',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -41,29 +51,30 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: development # Use development stage for hot reloading
-    container_name: home-library-app
+      target: development
+    container_name: ${APP_CONTAINER_NAME:-home-library-app}
     environment:
-      - NODE_ENV=development
-      - PORT=4000
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/home-library?schema=public
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=${PORT:-4000}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-home-library}?schema=public}
     ports:
-      - '4000:4000' # Standard app port
+      - '${PORT:-4000}:${PORT:-4000}'
     volumes:
       # Mount source code for hot reloading
-      - ./src:/app/src:ro # Source code (read-only)
-      - ./prisma:/app/prisma:ro # Prisma schema
-      - ./package.json:/app/package.json:ro # Package.json
-      - ./tsconfig.json:/app/tsconfig.json:ro # TypeScript config
-      - ./nest-cli.json:/app/nest-cli.json:ro # Nest CLI config
+      - ./src:/app/src:ro
+      - ./prisma:/app/prisma:ro
+      - ./package.json:/app/package.json:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - ./nest-cli.json:/app/nest-cli.json:ro
+      # Mount dist directory for compiled output
+      - ./dist:/app/dist
       # Exclude node_modules to avoid conflicts
       - /app/node_modules
-      - /app/dist
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      - home-library-network
+      - ${NETWORK_NAME:-home-library-network}
     healthcheck:
       test:
         [
@@ -72,7 +83,7 @@ services:
           '--no-verbose',
           '--tries=1',
           '--spider',
-          'http://localhost:4000/user',
+          'http://localhost:${PORT:-4000}/user',
           '||',
           'exit',
           '1',
@@ -83,15 +94,13 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-# Named volumes
 volumes:
   postgres_data:
     driver: local
   postgres_logs:
     driver: local
 
-# Custom network
 networks:
   home-library-network:
     driver: bridge
-    name: home-library-network
+    name: ${NETWORK_NAME:-home-library-network}
