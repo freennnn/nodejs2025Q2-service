@@ -490,3 +490,46 @@ docker tag nodejs2025q2-service-postgres:latest freennnn/nodejs2025q2-service-po
 docker push freennnn/nodejs2025q2-service-app:v1.2.3
 docker push freennnn/nodejs2025q2-service-postgres:v1.2.3
 ```
+
+### Local Development (Without Docker)
+
+For development without Docker, you'll need:
+
+1. **Node.js** (v22.14.0 or higher)
+2. **PostgreSQL** (v15 or higher)
+3. **Environment Setup**:
+   ```bash
+   # Copy environment template
+   cp .env.example .env
+   
+   # Edit .env with your local database settings
+   # For local development, use:
+   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/home-library
+   ```
+
+4. **Database Setup**:
+   ```bash
+   # Create database
+   createdb home-library
+   
+   # Run migrations
+   npx prisma migrate deploy
+   ```
+
+5. **Install Dependencies**:
+   ```bash
+   npm install
+   npx prisma generate
+   ```
+
+6. **Start Development Server**:
+   ```bash
+   # Development mode with hot reload
+   npm run start:dev
+   
+   # Or production mode
+   npm run build
+   npm run start:prod
+   ```
+
+The application will be available at http://localhost:4000

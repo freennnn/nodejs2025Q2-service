@@ -25,9 +25,10 @@ services:
       dockerfile: Dockerfile.postgres
     container_name: ${POSTGRES_CONTAINER_NAME:-home-library-postgres}
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-home-library}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      # Database configuration - used by PostgreSQL container
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     ports:
       - '${POSTGRES_PORT:-5432}:5432'
     volumes:
@@ -54,9 +55,16 @@ services:
       target: development
     container_name: ${APP_CONTAINER_NAME:-home-library-app}
     environment:
-      - NODE_ENV=${NODE_ENV:-development}
-      - PORT=${PORT:-4000}
-      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-home-library}?schema=public}
+      # Application configuration - used by NestJS app
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${PORT}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # JWT configuration - used by NestJS app
+      - CRYPT_SALT=${CRYPT_SALT}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_SECRET_REFRESH_KEY=${JWT_SECRET_REFRESH_KEY}
+      - TOKEN_EXPIRE_TIME=${TOKEN_EXPIRE_TIME}
+      - TOKEN_REFRESH_EXPIRE_TIME=${TOKEN_REFRESH_EXPIRE_TIME}
     ports:
       - '${PORT:-4000}:${PORT:-4000}'
     volumes:

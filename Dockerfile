@@ -24,7 +24,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node --version || exit 1
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["npm", "run", "start:dev"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:dev"]
 
 # Build stage - For production optimization
 FROM base AS builder
@@ -45,29 +45,29 @@ COPY package*.json ./
 
 # Install production deps + prisma CLI for migrations
 RUN npm install --only=production \
-    @nestjs/common@^11.0.0 \
-    @nestjs/core@^11.0.0 \
-    @nestjs/mapped-types@^2.1.0 \
-    @nestjs/platform-express@^11.0.0 \
-    @nestjs/swagger@^11.2.0 \
-    class-transformer@^0.5.1 \
-    class-validator@^0.14.1 \
-    dotenv@^16.4.5 \
-    js-yaml@^4.1.0 \
-    reflect-metadata@^0.2.1 \
-    rxjs@^7.8.1 \
-    uuid@^9.0.1 \
-    prisma@^6.9.0 \
-    --no-audit --no-fund --no-package-lock
+  @nestjs/common@^11.0.0 \
+  @nestjs/core@^11.0.0 \
+  @nestjs/mapped-types@^2.1.0 \
+  @nestjs/platform-express@^11.0.0 \
+  @nestjs/swagger@^11.2.0 \
+  class-transformer@^0.5.1 \
+  class-validator@^0.14.1 \
+  dotenv@^16.4.5 \
+  js-yaml@^4.1.0 \
+  reflect-metadata@^0.2.1 \
+  rxjs@^7.8.1 \
+  uuid@^9.0.1 \
+  prisma@^6.9.0 \
+  --no-audit --no-fund --no-package-lock
 
 # Clean up documentation and test files
 RUN find node_modules -name "*.md" -delete && \
-    find node_modules -name "*.txt" -delete && \
-    find node_modules -name "CHANGELOG*" -delete && \
-    find node_modules -name "LICENSE*" -delete && \
-    find node_modules -name "README*" -delete && \
-    find node_modules -name "*.map" -delete && \
-    rm -rf node_modules/*/test node_modules/*/tests node_modules/*/__tests__ 2>/dev/null || true
+  find node_modules -name "*.txt" -delete && \
+  find node_modules -name "CHANGELOG*" -delete && \
+  find node_modules -name "LICENSE*" -delete && \
+  find node_modules -name "README*" -delete && \
+  find node_modules -name "*.map" -delete && \
+  rm -rf node_modules/*/test node_modules/*/tests node_modules/*/__tests__ 2>/dev/null || true
 
 # Final production stage
 FROM base AS production

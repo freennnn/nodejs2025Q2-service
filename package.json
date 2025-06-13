@@ -28,7 +28,13 @@
     "security:docker:app": "docker scout cves home-library-app:latest",
     "security:docker:db": "docker scout cves home-library-postgres:latest",
     "security:docker:all": "npm run security:docker:app && npm run security:docker:db",
-    "security:all": "npm run security:audit && npm run security:docker:all"
+    "security:all": "npm run security:audit && npm run security:docker:all",
+    "docker:up:dev": "docker-compose --env-file .env.dev up",
+    "docker:build:dev": "docker-compose --env-file .env.dev up --build",
+    "docker:down:dev": "docker-compose --env-file .env.dev down",
+    "docker:up:prod": "docker-compose -f docker-compose.prod.yml --env-file .env.prod up",
+    "docker:build:prod": "docker-compose -f docker-compose.prod.yml --env-file .env.prod up --build",
+    "docker:down:prod": "docker-compose -f docker-compose.prod.yml --env-file .env.prod down"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
