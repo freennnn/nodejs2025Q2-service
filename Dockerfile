@@ -37,29 +37,14 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
-# Runtime dependencies stage - Install minimal production deps + prisma for migrations
+# Runtime dependencies stage - Install all production deps (omit=dev) from package.json
 FROM base AS runtime-deps
 
 WORKDIR /app
 COPY package*.json ./
 
-# Install production deps + prisma CLI for migrations
-RUN npm install --only=production \
-  @nestjs/common@^11.0.0 \
-  @nestjs/core@^11.0.0 \
-  @nestjs/mapped-types@^2.1.0 \
-  @nestjs/platform-express@^11.0.0 \
-  @nestjs/swagger@^11.2.0 \
-  class-transformer@^0.5.1 \
-  class-validator@^0.14.1 \
-  dotenv@^16.4.5 \
-  js-yaml@^4.1.0 \
-  reflect-metadata@^0.2.1 \
-  rxjs@^7.8.1 \
-  uuid@^9.0.1 \
-  prisma@^6.9.0 \
-  --no-audit --no-fund --no-package-lock
-
+# Install all production dependencies (omit=dev) from package.json (instead of a hardcoded list)
+RUN npm ci --omit=dev
 # Clean up documentation and test files
 RUN find node_modules -name "*.md" -delete && \
   find node_modules -name "*.txt" -delete && \
@@ -74,7 +59,7 @@ FROM base AS production
 
 WORKDIR /app
 
-# Copy minimal runtime dependencies (now includes prisma CLI)
+# Copy minimal runtime dependencies (now includes all production deps from package.json)
 COPY --from=runtime-deps --chown=nestjs:nodejs /app/node_modules ./node_modules
 
 # Copy only the generated Prisma client 
