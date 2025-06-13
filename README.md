@@ -13,6 +13,29 @@ NestJS music library API with PostgreSQL database, containerized with Docker for
 
 ## 🐳 Docker Deployment (Recommended)
 
+The easiest and recommended way to run the application in both development and production is via the provided npm scripts:
+
+### 🚀 Docker Compose via npm scripts
+
+You can use convenient npm scripts to manage Docker containers for both development and production:
+
+| Command                   | Description                                                      |
+|---------------------------|------------------------------------------------------------------|
+| npm run docker:up:dev     | Start development containers using docker-compose and .env.dev     |
+| npm run docker:build:dev  | Build and start dev containers using docker-compose and .env.dev   |
+| npm run docker:up:prod    | Start production containers using docker-compose.prod.yml and .env.prod |
+| npm run docker:build:prod | Build and start prod containers using docker-compose.prod.yml and .env.prod |
+| npm run docker:down       | Stop and remove all containers                                    |
+
+**Example:**
+
+```bash
+npm run docker:build:prod   # Build and start production containers
+npm run docker:down         # Stop and remove all containers
+```
+
+---
+
 The application is fully containerized and available on Docker Hub for easy deployment.
 
 ### Quick Start with Docker Hub Images
@@ -498,6 +521,7 @@ For development without Docker, you'll need:
 1. **Node.js** (v22.14.0 or higher)
 2. **PostgreSQL** (v15 or higher)
 3. **Environment Setup**:
+
    ```bash
    # Copy environment template
    cp .env.example .env
@@ -508,6 +532,7 @@ For development without Docker, you'll need:
    ```
 
 4. **Database Setup**:
+
    ```bash
    # Create database
    createdb home-library
@@ -517,12 +542,14 @@ For development without Docker, you'll need:
    ```
 
 5. **Install Dependencies**:
+
    ```bash
    npm install
    npx prisma generate
    ```
 
 6. **Start Development Server**:
+
    ```bash
    # Development mode with hot reload
    npm run start:dev
@@ -532,4 +559,4 @@ For development without Docker, you'll need:
    npm run start:prod
    ```
 
-The application will be available at http://localhost:4000
+The application will be available at <http://localhost:4000>
