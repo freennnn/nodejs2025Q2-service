@@ -58,6 +58,8 @@ curl http://localhost:4000/user
 - **Application**: `freennnn/nodejs2025q2-service-app:latest` (446MB)
 - **Database**: `freennnn/nodejs2025q2-service-postgres:latest` (391MB)
 
+> **Note:** These images will run as containers named `home-library-app-prod` and `home-library-postgres-prod` respectively.
+
 ### Docker Architecture
 
 ```bash
@@ -69,6 +71,25 @@ curl http://localhost:4000/user
         ↑                                          ↑
    Host: 4000                               Host: 5432
 ```
+
+### Docker Hub Images vs Container Names
+
+**Important:** Docker Hub image names and running container names are different by design:
+
+| Component | Docker Hub Image Name | Running Container Name |
+|-----------|----------------------|------------------------|
+| **Application** | `freennnn/nodejs2025q2-service-app:latest` | `home-library-app-prod` |
+| **Database** | `freennnn/nodejs2025q2-service-postgres:latest` | `home-library-postgres-prod` |
+
+**Why this design?**
+- **Image names** (`nodejs2025q2-service-*`) reflect the repository/project structure
+- **Container names** (`home-library-*`) reflect the application's purpose/domain
+- This allows multiple projects to use the same base images with different container names
+
+**What you'll see:**
+- In **Docker Hub**: `freennnn/nodejs2025q2-service-app:latest`
+- In **Docker Desktop**: Container named `home-library-app-prod`
+- This is normal and expected behavior!
 
 ### Build from Source (Development)
 
