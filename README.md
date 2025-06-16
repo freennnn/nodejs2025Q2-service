@@ -5,6 +5,7 @@ NestJS music library API with PostgreSQL database, containerized with Docker for
 ## Features
 
 - **RESTful API** for music library management (Users, Artists, Albums, Tracks, Favorites)
+- **JWT Authentication** with Bearer token authorization and secure password hashing
 - **PostgreSQL Database** with Prisma ORM
 - **Docker Containerization** with optimized images (< 500MB)
 - **Automated Database Migrations** on startup
@@ -247,6 +248,222 @@ The application provides REST API endpoints for managing:
 - **Favorites** (`/favs`) - Add/remove tracks, albums, and artists to/from favorites
 
 All endpoints support standard CRUD operations. See the OpenAPI documentation for detailed API specifications.
+
+## 🔐 Authentication & Authorization
+
+The application implements JWT-based authentication with Bearer token authorization for secure API access.
+
+### Authentication System Overview
+
+**🔒 Security Features:**
+- ✅ **JWT Bearer Token Authentication** - Industry standard security
+- ✅ **Password Hashing** - bcrypt with configurable salt rounds
+- ✅ **Token Expiration** - Access tokens (30m), Refresh tokens (7d)
+- ✅ **Separate Token Secrets** - Different secrets for access vs refresh tokens
+- ✅ **Global Protection** - All endpoints protected by default
+- ✅ **Public Route Support** - Flexible authentication exemptions
+
+### Authentication Endpoints
+
+#### 1. User Registration
+```bash
+POST /auth/signup
+Content-Type: application/json
+
+{
+  "login": "username",
+  "password": "securepassword"
+}
+
+# Response: 201 Created
+{
+  "id": "uuid",
+  "login": "username",
+  "version": 1,
+  "createdAt": 1234567890,
+  "updatedAt": 1234567890
+}
+```
+
+#### 2. User Login
+```bash
+POST /auth/login
+Content-Type: application/json
+
+{
+  "login": "username", 
+  "password": "securepassword"
+}
+
+# Response: 200 OK
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+}
+```
+
+#### 3. Token Refresh
+```bash
+POST /auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+}
+
+# Response: 200 OK
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+}
+```
+
+### Using Bearer Token Authentication
+
+All protected endpoints require the JWT access token in the Authorization header:
+
+```bash
+# Standard Bearer Token Format
+Authorization: Bearer <jwt_access_token>
+
+# Example API Request
+curl -X GET http://localhost:4000/user \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+  -H "Content-Type: application/json"
+```
+
+### Endpoint Authentication Requirements
+
+#### 🌐 Public Endpoints (No Authentication Required)
+- `GET /` - Root endpoint
+- `POST /auth/signup` - User registration
+- `POST /auth/login` - User login  
+- `POST /auth/refresh` - Token refresh
+- `GET /doc` - Swagger API documentation
+
+#### 🔒 Protected Endpoints (Bearer Token Required)
+- `GET /user` - Get all users
+- `POST /user` - Create user
+- `GET /user/:id` - Get user by ID
+- `PUT /user/:id` - Update user
+- `DELETE /user/:id` - Delete user
+- `GET /track` - Get all tracks
+- `POST /track` - Create track
+- `GET /track/:id` - Get track by ID
+- `PUT /track/:id` - Update track
+- `DELETE /track/:id` - Delete track
+- `GET /artist` - Get all artists
+- `POST /artist` - Create artist
+- `GET /artist/:id` - Get artist by ID
+- `PUT /artist/:id` - Update artist
+- `DELETE /artist/:id` - Delete artist
+- `GET /album` - Get all albums
+- `POST /album` - Create album
+- `GET /album/:id` - Get album by ID
+- `PUT /album/:id` - Update album
+- `DELETE /album/:id` - Delete album
+- `GET /favs` - Get favorites
+- `POST /favs/track/:id` - Add track to favorites
+- `DELETE /favs/track/:id` - Remove track from favorites
+- `POST /favs/album/:id` - Add album to favorites
+- `DELETE /favs/album/:id` - Remove album from favorites
+- `POST /favs/artist/:id` - Add artist to favorites
+- `DELETE /favs/artist/:id` - Remove artist from favorites
+
+### Authentication Error Responses
+
+#### 401 Unauthorized - Missing Token
+```bash
+curl -X GET http://localhost:4000/user
+
+# Response: 401 Unauthorized
+{
+  "message": "Access token is missing",
+  "error": "Unauthorized", 
+  "statusCode": 401
+}
+```
+
+#### 401 Unauthorized - Invalid Token
+```bash
+curl -X GET http://localhost:4000/user \
+  -H "Authorization: Bearer invalid-token"
+
+# Response: 401 Unauthorized
+{
+  "message": "Invalid access token",
+  "error": "Unauthorized",
+  "statusCode": 401
+}
+```
+
+#### 403 Forbidden - Wrong Credentials
+```bash
+POST /auth/login
+{
+  "login": "user",
+  "password": "wrongpassword"
+}
+
+# Response: 403 Forbidden
+{
+  "message": "Wrong login or password",
+  "error": "Forbidden",
+  "statusCode": 403
+}
+```
+
+### Token Configuration
+
+Default JWT token settings (configurable via environment variables):
+
+```bash
+# Access Token
+JWT_SECRET_KEY=your-secret-key
+TOKEN_EXPIRE_TIME=30m
+
+# Refresh Token  
+JWT_SECRET_REFRESH_KEY=your-refresh-secret
+REFRESH_TOKEN_EXPIRE_TIME=7d
+
+# Password Hashing
+CRYPT_SALT=10
+```
+
+### Authentication Flow Example
+
+```bash
+# 1. Register a new user
+curl -X POST http://localhost:4000/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"login": "newuser", "password": "mypassword"}'
+
+# 2. Login to get tokens
+curl -X POST http://localhost:4000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"login": "newuser", "password": "mypassword"}'
+
+# 3. Use access token for protected endpoints
+curl -X GET http://localhost:4000/user \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json"
+
+# 4. Refresh tokens when access token expires
+curl -X POST http://localhost:4000/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refreshToken": "YOUR_REFRESH_TOKEN"}'
+```
+
+### Security Best Practices Implemented
+
+- ✅ **Password Security**: Passwords hashed with bcrypt (never stored as plain text)
+- ✅ **Token Expiration**: Short-lived access tokens (30 minutes) for security
+- ✅ **Refresh Token Strategy**: Long-lived refresh tokens (7 days) for user convenience
+- ✅ **Separate Secrets**: Different JWT secrets for access and refresh tokens
+- ✅ **Input Validation**: DTO validation with class-validator for all authentication endpoints
+- ✅ **Proper HTTP Status Codes**: 400 (Bad Request), 401 (Unauthorized), 403 (Forbidden), 409 (Conflict)
+- ✅ **Global Protection**: All endpoints protected by default with opt-in public routes
+- ✅ **Bearer Token Standard**: Follows RFC 6750 OAuth 2.0 Bearer Token specification
 
 ## Testing
 
