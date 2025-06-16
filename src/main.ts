@@ -2,6 +2,9 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { LoggingService } from './logging/logging.service';
+import { AllExceptionsFilter } from './filters/all-exceptions.filter';
+import { LoggingInterceptor } from './interceptors/logging.interceptor';
 import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -14,6 +17,15 @@ dotenv.config({ path: envFile });
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Get logging service instance
+  const loggingService = app.get(LoggingService);
+
+  // Setup global exception filter
+  app.useGlobalFilters(new AllExceptionsFilter(loggingService));
+
+  // Setup global logging interceptor
+  app.useGlobalInterceptors(new LoggingInterceptor(loggingService));
 
   app.useGlobalPipes(
     // Incoming Request → ValidationPipe → DTO Validation → Controller Method:
@@ -36,13 +48,71 @@ async function bootstrap() {
     const apiDocument = yaml.load(apiYaml) as any;
 
     SwaggerModule.setup('doc', app, apiDocument);
-    console.log('Swagger UI available at http://localhost:4000/doc');
+    loggingService.info(
+      'Swagger UI available at http://localhost:4000/doc',
+      'Bootstrap',
+    );
   } catch (error) {
-    console.warn('Could not load api.yaml for Swagger UI:', error.message);
+    loggingService.warn('Could not load api.yaml for Swagger UI', 'Bootstrap', {
+      error: error.message,
+    });
   }
+
+  // Setup process-level error handlers
+  setupProcessErrorHandlers(loggingService);
 
   const port = process.env.PORT || 4000;
   await app.listen(port);
-  console.log(`🚀 Application is running on port ${port}`);
+
+  loggingService.info(`🚀 Application is running on port ${port}`, 'Bootstrap');
+  loggingService.info(`Environment: ${process.env.NODE_ENV}`, 'Bootstrap');
+  loggingService.info(
+    `Log Level: ${process.env.LOG_LEVEL || 'INFO'}`,
+    'Bootstrap',
+  );
 }
+
+function setupProcessErrorHandlers(loggingService: LoggingService): void {
+  // Handle uncaught exceptions
+  process.on('uncaughtException', (error: Error) => {
+    loggingService.error(
+      'Uncaught Exception - Application will exit',
+      'Process',
+      {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      },
+    );
+
+    // Give time for logs to flush, then exit
+    setTimeout(() => {
+      process.exit(1);
+    }, 1000);
+  });
+
+  // Handle unhandled promise rejections
+  process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+    loggingService.error('Unhandled Promise Rejection', 'Process', {
+      reason: reason?.toString() || 'Unknown reason',
+      stack: reason?.stack || 'No stack trace available',
+      promise: promise.toString(),
+    });
+
+    // Log but don't exit for unhandled rejections (let the application continue)
+  });
+
+  // Handle graceful shutdown
+  process.on('SIGTERM', () => {
+    loggingService.info(
+      'SIGTERM received, shutting down gracefully',
+      'Process',
+    );
+  });
+
+  process.on('SIGINT', () => {
+    loggingService.info('SIGINT received, shutting down gracefully', 'Process');
+  });
+}
+
 bootstrap();

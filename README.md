@@ -6,6 +6,7 @@ NestJS music library API with PostgreSQL database, containerized with Docker for
 
 - **RESTful API** for music library management (Users, Artists, Albums, Tracks, Favorites)
 - **JWT Authentication** with Bearer token authorization and secure password hashing
+- **Comprehensive Logging** with custom LoggingService, request/response tracking, and file rotation
 - **PostgreSQL Database** with Prisma ORM
 - **Docker Containerization** with optimized images (< 500MB)
 - **Automated Database Migrations** on startup
@@ -464,6 +465,239 @@ curl -X POST http://localhost:4000/auth/refresh \
 - ✅ **Proper HTTP Status Codes**: 400 (Bad Request), 401 (Unauthorized), 403 (Forbidden), 409 (Conflict)
 - ✅ **Global Protection**: All endpoints protected by default with opt-in public routes
 - ✅ **Bearer Token Standard**: Follows RFC 6750 OAuth 2.0 Bearer Token specification
+
+## 📝 Logging & Error Handling
+
+The application implements a comprehensive logging system with custom LoggingService, request/response tracking, file rotation, and global error handling.
+
+### Logging System Overview
+
+**🔧 Features:**
+- ✅ **Custom LoggingService** - Dependency injection based logging service
+- ✅ **Request/Response Logging** - Automatic HTTP request and response logging
+- ✅ **Multiple Log Levels** - ERROR, WARN, INFO, DEBUG with environment control
+- ✅ **File Rotation** - Automatic log file rotation based on file size
+- ✅ **Global Exception Filter** - Centralized error handling with HTTP 500 for unexpected errors
+- ✅ **Process Event Handlers** - Logging for uncaughtException and unhandledRejection
+- ✅ **Dual Output** - Both console (stdout) and file logging
+
+### Architecture & Implementation Choices
+
+#### Why NestJS Interceptors + RxJS?
+
+**NestJS Interceptor Interface Requirement:**
+```typescript
+export interface NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any>;
+  //                                                        ↑
+  //                                                    Must return Observable
+}
+```
+
+**Our LoggingInterceptor Implementation:**
+```typescript
+import { Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
+
+export class LoggingInterceptor implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    // Log incoming request
+    this.loggingService.logRequest(method, url, query, body, userAgent);
+    
+    return next.handle().pipe(  // ← next.handle() returns Observable
+      tap({                     // ← tap is RxJS operator for side effects
+        next: () => {
+          // Log successful response
+        },
+        error: (error) => {
+          // Log error response  
+        },
+      }),
+    );
+  }
+}
+```
+
+#### Implementation Approach Comparison
+
+| Feature | **Interceptors (RxJS)** ✅ | Middleware |
+|---------|---------------------------|------------|
+| **Integration** | ✅ Native NestJS | ⚠️ Express-specific |
+| **Type Safety** | ✅ Full TypeScript | ⚠️ Limited |
+| **Error Handling** | ✅ Elegant async error handling | ⚠️ Manual implementation |
+| **Testing** | ✅ Easy to mock and test | ⚠️ More complex setup |
+| **DI Support** | ✅ Full dependency injection | ⚠️ Limited DI capabilities |
+| **Performance** | ✅ Non-blocking side effects | ⚠️ Can block request flow |
+| **Maintainability** | ✅ Clean separation of concerns | ⚠️ Mixed responsibilities |
+
+**Why RxJS is Essential:**
+- 🔄 **NestJS Standard** - Interceptors are the recommended NestJS approach
+- 🚀 **Already Available** - RxJS is a core NestJS dependency (`rxjs: ^7.8.1`)
+- 🎯 **Non-Blocking** - `tap` operator allows logging without affecting response
+- 🔧 **Async-First** - Perfect for handling async HTTP request/response lifecycle
+
+### Logging Configuration
+
+**Environment Variables:**
+```bash
+# Logging Configuration
+LOG_LEVEL=INFO              # ERROR | WARN | INFO | DEBUG
+LOG_DIR=./logs              # Directory for log files
+LOG_MAX_FILE_SIZE=1024      # File size in KB before rotation
+
+# Application logs output to:
+# - Console (stdout) for all levels
+# - ./logs/app.log for all messages
+# - ./logs/error.log for errors only
+```
+
+### Log Levels and Output
+
+#### 1. Log Level Priority
+```
+ERROR = 0    # Highest priority
+WARN  = 1
+INFO  = 2
+DEBUG = 3    # Lowest priority (most verbose)
+```
+
+#### 2. Log Format
+```
+[2024-01-15T10:30:45.123Z] [INFO] [HTTP] Incoming request {"method":"GET","url":"/user","query":{},"body":{}}
+[2024-01-15T10:30:45.156Z] [INFO] [HTTP] Response 200 {"method":"GET","url":"/user","statusCode":200,"responseTime":"33ms"}
+```
+
+#### 3. File Rotation
+- **Automatic rotation** when file exceeds `LOG_MAX_FILE_SIZE` (default: 1MB)
+- **Timestamped backups**: `app.log.2024-01-15T10-30-45-123Z`
+- **Separate error logs**: Critical errors also saved to `error.log`
+
+### Request/Response Logging Features
+
+#### Automatic HTTP Logging
+```typescript
+// Every HTTP request logs:
+{
+  "method": "POST",
+  "url": "/auth/login", 
+  "query": {},
+  "body": {"login": "user"},
+  "userAgent": "curl/7.68.0"
+}
+
+// Every HTTP response logs:
+{
+  "method": "POST",
+  "url": "/auth/login",
+  "statusCode": 200,
+  "responseTime": "45ms"
+}
+```
+
+#### Error Response Logging
+```typescript
+// 4xx/5xx responses get additional error-level logging:
+{
+  "method": "GET",
+  "url": "/protected-route",
+  "statusCode": 401,
+  "error": "Unauthorized",
+  "message": "Access token is missing",
+  "userAgent": "curl/7.68.0",
+  "ip": "127.0.0.1"
+}
+```
+
+### Global Error Handling
+
+#### Custom Exception Filter
+```typescript
+@Catch()
+export class AllExceptionsFilter implements ExceptionFilter {
+  catch(exception: unknown, host: ArgumentsHost): void {
+    // Handle HTTP exceptions (400, 401, 404, etc.)
+    // Handle unexpected errors → Always return HTTP 500
+    // Log all errors with full context
+  }
+}
+```
+
+#### Process-Level Error Handlers
+```typescript
+// Uncaught exceptions
+process.on('uncaughtException', (error: Error) => {
+  loggingService.error('Uncaught Exception - Application will exit');
+  // Graceful shutdown after logging
+});
+
+// Unhandled promise rejections  
+process.on('unhandledRejection', (reason: any) => {
+  loggingService.error('Unhandled Promise Rejection');
+  // Log but continue running
+});
+```
+
+### Usage Examples
+
+#### 1. Manual Logging in Services
+```typescript
+@Injectable()
+export class UserService {
+  constructor(private readonly loggingService: LoggingService) {}
+
+  async createUser(userData: CreateUserDto) {
+    this.loggingService.info('Creating new user', 'UserService', { login: userData.login });
+    
+    try {
+      const user = await this.userRepository.create(userData);
+      this.loggingService.info('User created successfully', 'UserService', { userId: user.id });
+      return user;
+    } catch (error) {
+      this.loggingService.error('Failed to create user', 'UserService', { error: error.message });
+      throw error;
+    }
+  }
+}
+```
+
+#### 2. Automatic HTTP Logging
+```bash
+# Start application
+npm run start:dev
+
+# Make a request - automatically logged:
+curl -X POST http://localhost:4000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"login": "user", "password": "pass"}'
+
+# Console output:
+# [2024-01-15T10:30:45.123Z] [INFO] [HTTP] Incoming request {"method":"POST","url":"/auth/login",...}
+# [2024-01-15T10:30:45.156Z] [INFO] [HTTP] Response 200 {"statusCode":200,"responseTime":"33ms"}
+```
+
+#### 3. Error Scenarios
+```bash
+# Missing authentication - logged as error:
+curl -X GET http://localhost:4000/user
+
+# Console output:
+# [2024-01-15T10:30:45.123Z] [INFO] [HTTP] Incoming request {"method":"GET","url":"/user"}
+# [2024-01-15T10:30:45.125Z] [ERROR] [HTTP] Response 401 {"statusCode":401,"responseTime":"2ms"}
+# [2024-01-15T10:30:45.125Z] [ERROR] [ExceptionFilter] HTTP 401 Error {"method":"GET","url":"/user","statusCode":401,...}
+```
+
+### Logging Architecture Benefits
+
+**🎯 Why This Implementation:**
+- ✅ **Compliance** - Uses only `@nestjs/common` and `@nestjs/core` as required
+- ✅ **Dependency Injection** - LoggingService available throughout the application
+- ✅ **Performance** - Non-blocking async logging with RxJS streams
+- ✅ **Observability** - Complete request/response lifecycle visibility  
+- ✅ **Error Tracking** - Comprehensive error logging and handling
+- ✅ **Production Ready** - File rotation, log levels, and process error handling
+- ✅ **Developer Experience** - Clean, type-safe logging interface
+
+The logging system provides comprehensive observability while maintaining high performance and following NestJS architectural patterns.
 
 ## Testing
 
