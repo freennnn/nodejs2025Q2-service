@@ -3,11 +3,13 @@ import { plainToClass } from 'class-transformer';
 import { AuthService } from './auth.service';
 import { SignupDto, LoginDto, RefreshDto, TokensResponseDto } from './dto';
 import { UserResponseDto } from '../users/dto/user-response.dto';
+import { Public } from './decorators/public.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
   async signup(@Body() signupDto: SignupDto): Promise<UserResponseDto> {
@@ -17,12 +19,14 @@ export class AuthController {
     });
   }
 
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto): Promise<TokensResponseDto> {
     return this.authService.login(loginDto);
   }
 
+  @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(@Body() refreshDto: RefreshDto): Promise<TokensResponseDto> {
