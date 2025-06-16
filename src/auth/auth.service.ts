@@ -2,6 +2,7 @@ import {
   Injectable,
   ForbiddenException,
   ConflictException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -68,6 +69,11 @@ export class AuthService {
 
   async refresh(refreshDto: RefreshDto): Promise<TokensResponseDto> {
     const { refreshToken } = refreshDto;
+
+    // Check if refreshToken is provided (even though DTO validation should catch this)
+    if (!refreshToken || refreshToken.trim() === '') {
+      throw new UnauthorizedException('Refresh token is required');
+    }
 
     try {
       // Verify refresh token
