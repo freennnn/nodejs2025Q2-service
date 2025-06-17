@@ -4,7 +4,6 @@ import {
   ArgumentsHost,
   HttpException,
   HttpStatus,
-  BadRequestException,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { LoggingService } from '../logging/logging.service';
@@ -23,53 +22,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let error: string;
 
     if (exception instanceof HttpException) {
-      // Special handling for validation errors on /auth/refresh endpoint
-      if (
-        exception instanceof BadRequestException &&
-        request.url === '/auth/refresh' &&
-        request.method === 'POST'
-      ) {
-        const exceptionResponse = exception.getResponse() as any;
+      // Handle HTTP exceptions normally
+      status = exception.getStatus();
+      const exceptionResponse = exception.getResponse() as any;
 
-        // Check if it's a validation error for refreshToken
-        if (
-          exceptionResponse?.message &&
-          Array.isArray(exceptionResponse.message) &&
-          exceptionResponse.message.some(
-            (msg: string) =>
-              msg.includes('refreshToken') ||
-              msg.includes('should not be empty'),
-          )
-        ) {
-          // Convert to 401 Unauthorized for missing refresh token
-          status = HttpStatus.UNAUTHORIZED;
-          message = 'Refresh token is required';
-          error = 'Unauthorized';
-        } else {
-          // Regular BadRequest handling
-          status = exception.getStatus();
-          const exceptionResponse = exception.getResponse() as any;
-
-          if (typeof exceptionResponse === 'string') {
-            message = exceptionResponse;
-            error = exception.name;
-          } else {
-            message = exceptionResponse.message || exception.message;
-            error = exceptionResponse.error || exception.name;
-          }
-        }
+      if (typeof exceptionResponse === 'string') {
+        message = exceptionResponse;
+        error = exception.name;
       } else {
-        // Handle other HTTP exceptions normally
-        status = exception.getStatus();
-        const exceptionResponse = exception.getResponse() as any;
-
-        if (typeof exceptionResponse === 'string') {
-          message = exceptionResponse;
-          error = exception.name;
-        } else {
-          message = exceptionResponse.message || exception.message;
-          error = exceptionResponse.error || exception.name;
-        }
+        message = exceptionResponse.message || exception.message;
+        error = exceptionResponse.error || exception.name;
       }
     } else {
       // Handle unexpected errors - always return 500
