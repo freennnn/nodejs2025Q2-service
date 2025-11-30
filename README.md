@@ -20,7 +20,11 @@ npm install
 ## Running application
 
 ```bash
-npm start
+npm run start
+```
+or
+```bash
+npm run start:dev
 ```
 
 To view interactive API documentation, you can:
@@ -44,7 +48,18 @@ All endpoints support standard CRUD operations. See the OpenAPI documentation fo
 
 ## Testing
 
-After application running open new terminal and enter:
+**Prerequisites:**
+Before running tests, ensure the application is set up and running:
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Start the application in development mode (in a separate terminal)
+npm run start:dev
+```
+
+After application is running, open a new terminal and run tests:
 
 To run all tests without authorization
 
