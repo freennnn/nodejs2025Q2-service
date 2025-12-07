@@ -1,0 +1,128 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  login     String   @unique
+  password  String
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  favorites Favorites?
+
+  @@map("users")
+}
+
+// Artist model
+model Artist {
+  id     String  @id @default(uuid()) @db.Uuid
+  name   String
+  grammy Boolean @default(false)
+
+  // Relationships
+  albums    Album[]
+  tracks    Track[]
+  favorites FavoriteArtist[]
+
+  @@map("artists")
+}
+
+// Album model
+model Album {
+  id       String  @id @default(uuid()) @db.Uuid
+  name     String
+  year     Int
+  artistId String? @db.Uuid
+
+  // Relationships
+  artist    Artist?         @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  tracks    Track[]
+  favorites FavoriteAlbum[]
+
+  @@map("albums")
+}
+
+// Track model
+model Track {
+  id       String  @id @default(uuid()) @db.Uuid
+  name     String
+  artistId String? @db.Uuid
+  albumId  String? @db.Uuid
+  duration Int // duration in seconds
+
+  // Relationships
+  artist    Artist?         @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  album     Album?          @relation(fields: [albumId], references: [id], onDelete: SetNull)
+  favorites FavoriteTrack[]
+
+  @@map("tracks")
+}
+
+// Favorites main model (one per user)
+model Favorites {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @unique @db.Uuid
+
+  // Relationships
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artists FavoriteArtist[]
+  albums  FavoriteAlbum[]
+  tracks  FavoriteTrack[]
+
+  @@map("favorites")
+}
+
+// Junction table for favorite artists
+model FavoriteArtist {
+  id          String @id @default(uuid()) @db.Uuid
+  favoritesId String @db.Uuid
+  artistId    String @db.Uuid
+
+  // Relationships
+  favorites Favorites @relation(fields: [favoritesId], references: [id], onDelete: Cascade)
+  artist    Artist    @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([favoritesId, artistId])
+  @@map("favorite_artists")
+}
+
+// Junction table for favorite albums
+model FavoriteAlbum {
+  id          String @id @default(uuid()) @db.Uuid
+  favoritesId String @db.Uuid
+  albumId     String @db.Uuid
+
+  // Relationships
+  favorites Favorites @relation(fields: [favoritesId], references: [id], onDelete: Cascade)
+  album     Album     @relation(fields: [albumId], references: [id], onDelete: Cascade)
+
+  @@unique([favoritesId, albumId])
+  @@map("favorite_albums")
+}
+
+// Junction table for favorite tracks
+model FavoriteTrack {
+  id          String @id @default(uuid()) @db.Uuid
+  favoritesId String @db.Uuid
+  trackId     String @db.Uuid
+
+  // Relationships
+  favorites Favorites @relation(fields: [favoritesId], references: [id], onDelete: Cascade)
+  track     Track     @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@unique([favoritesId, trackId])
+  @@map("favorite_tracks")
+}
