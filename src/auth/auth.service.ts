@@ -15,7 +15,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   async signup(signupDto: SignupDto): Promise<User> {
     const { login, password } = signupDto;
@@ -70,7 +70,7 @@ export class AuthService {
   async refresh(refreshDto: RefreshDto): Promise<TokensResponseDto> {
     const { refreshToken } = refreshDto;
 
-    // Check if refreshToken is provided (even though DTO validation should catch this)
+    // Check if refreshToken is provided - return 401 (not 400) for missing token
     if (!refreshToken || refreshToken.trim() === '') {
       throw new UnauthorizedException('Refresh token is required');
     }

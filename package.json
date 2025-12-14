@@ -38,7 +38,13 @@
     "docker:build:dev": "docker-compose --env-file .env.dev up --build",
     "docker:up:prod": "docker-compose -f docker-compose.prod.yml --env-file .env.prod up",
     "docker:build:prod": "docker-compose -f docker-compose.prod.yml --env-file .env.prod up --build",
-    "docker:down": "docker-compose down"
+    "docker:down": "docker-compose down",
+    "docker:build:app": "docker build --target production -t freennnn/nodejs2025q2-service-app:latest .",
+    "docker:push:app": "docker push freennnn/nodejs2025q2-service-app:latest",
+    "docker:build:push:app": "npm run docker:build:app && npm run docker:push:app",
+    "docker:build:postgres": "docker build -f Dockerfile.postgres -t freennnn/nodejs2025q2-service-postgres:latest .",
+    "docker:push:postgres": "docker push freennnn/nodejs2025q2-service-postgres:latest",
+    "docker:build:push:postgres": "npm run docker:build:postgres && npm run docker:push:postgres"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
