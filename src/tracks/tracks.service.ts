@@ -1,96 +1,80 @@
-import {
-  Injectable,
-  NotFoundException,
-  Inject,
-  forwardRef,
-} from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
-import { Track } from './track.interface';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { Track } from '../../generated/prisma';
 import { CreateTrackDto } from './dto/create-track.dto';
 import { UpdateTrackDto } from './dto/update-track.dto';
-import { FavoritesService } from '../favorites/favorites.service';
 
 @Injectable()
 export class TracksService {
-  private tracks: Track[] = [];
+  constructor(private readonly prisma: PrismaService) {}
 
-  constructor(
-    @Inject(forwardRef(() => FavoritesService))
-    private readonly favoritesService: FavoritesService,
-  ) {}
-
-  findAll(): Track[] {
-    return this.tracks;
+  async findAll(): Promise<Track[]> {
+    return this.prisma.track.findMany();
   }
 
-  findOne(id: string): Track {
-    const track = this.tracks.find((track) => track.id === id);
+  async findOne(id: string): Promise<Track> {
+    const track = await this.prisma.track.findUnique({
+      where: { id },
+    });
+
     if (!track) {
       throw new NotFoundException(`Track with id ${id} not found`);
     }
-    return track;
-  }
-
-  create(createTrackDto: CreateTrackDto): Track {
-    const newTrack: Track = {
-      id: uuidv4(),
-      name: createTrackDto.name,
-      artistId: createTrackDto.artistId || null,
-      albumId: createTrackDto.albumId || null,
-      duration: createTrackDto.duration,
-    };
-
-    this.tracks.push(newTrack);
-    return newTrack;
-  }
-
-  update(id: string, updateTrackDto: UpdateTrackDto): Track {
-    const track = this.findOne(id);
-
-    if (updateTrackDto.name !== undefined) {
-      track.name = updateTrackDto.name;
-    }
-    if (updateTrackDto.artistId !== undefined) {
-      track.artistId = updateTrackDto.artistId;
-    }
-    if (updateTrackDto.albumId !== undefined) {
-      track.albumId = updateTrackDto.albumId;
-    }
-    if (updateTrackDto.duration !== undefined) {
-      track.duration = updateTrackDto.duration;
-    }
 
     return track;
   }
 
-  remove(id: string): void {
-    const trackIndex = this.tracks.findIndex((track) => track.id === id);
-    if (trackIndex === -1) {
-      throw new NotFoundException(`Track with id ${id} not found`);
+  async create(createTrackDto: CreateTrackDto): Promise<Track> {
+    return this.prisma.track.create({
+      data: {
+        name: createTrackDto.name,
+        artistId: createTrackDto.artistId ?? null, // Convert undefined to null
+        albumId: createTrackDto.albumId ?? null, // Convert undefined to null
+        duration: createTrackDto.duration,
+      },
+    });
+  }
+
+  async update(id: string, updateTrackDto: UpdateTrackDto): Promise<Track> {
+    try {
+      return await this.prisma.track.update({
+        where: { id },
+        data: {
+          ...updateTrackDto,
+          // Handle nullable foreign key type conversions
+          ...(updateTrackDto.artistId !== undefined && {
+            artistId: updateTrackDto.artistId ?? null,
+          }),
+          ...(updateTrackDto.albumId !== undefined && {
+            albumId: updateTrackDto.albumId ?? null,
+          }),
+        },
+      });
+    } catch (error) {
+      // Prisma throws P2025 when record is not found
+      if (error.code === 'P2025') {
+        throw new NotFoundException(`Track with id ${id} not found`);
+      }
+      throw error;
     }
-
-    // Remove track from the array
-    this.tracks.splice(trackIndex, 1);
-
-    // Cascade delete: remove from favorites
-    this.favoritesService.removeTrackFromFavoritesIfExists(id);
   }
 
-  // Method to remove artist references when an artist is deleted
-  removeArtistReferences(artistId: string): void {
-    this.tracks.forEach((track) => {
-      if (track.artistId === artistId) {
-        track.artistId = null;
+  async remove(id: string): Promise<void> {
+    try {
+      await this.prisma.track.delete({
+        where: { id },
+      });
+      // No manual cascade deletion needed - Prisma handles it automatically:
+      // - FavoriteTrack records: CASCADE deleted
+    } catch (error) {
+      // Prisma throws P2025 when record is not found
+      if (error.code === 'P2025') {
+        throw new NotFoundException(`Track with id ${id} not found`);
       }
-    });
+      throw error;
+    }
   }
 
-  // Method to remove album references when an album is deleted
-  removeAlbumReferences(albumId: string): void {
-    this.tracks.forEach((track) => {
-      if (track.albumId === albumId) {
-        track.albumId = null;
-      }
-    });
-  }
+  // removeArtistReferences and removeAlbumReferences methods removed
+  // Prisma handles this automatically with onDelete: SetNull
 }

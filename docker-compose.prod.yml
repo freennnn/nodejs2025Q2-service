@@ -1,0 +1,105 @@
+# Production Docker Compose - Uses Docker Hub Images
+# No local building required - pulls optimized images from Docker Hub
+#
+# Usage:
+#   docker-compose -f docker-compose.prod.yml up -d
+#
+# Required Environment Variables:
+#   POSTGRES_DB (default: home-library)
+#   POSTGRES_USER (default: postgres)
+#   POSTGRES_PASSWORD (default: postgres)
+#   POSTGRES_PORT (default: 5432)
+#   PORT (default: 4000)
+#   NODE_ENV (default: production)
+#   POSTGRES_IMAGE (default: freennnn/nodejs2025q2-service-postgres:latest)
+#   APP_IMAGE (default: freennnn/nodejs2025q2-service-app:latest)
+#
+# Features:
+#   - Uses pre-built optimized images from Docker Hub
+#   - Faster deployment (no build time)
+
+services:
+  # PostgreSQL Database from Docker Hub
+  postgres:
+    image: ${POSTGRES_IMAGE:-freennnn/nodejs2025q2-service-postgres:latest}
+    container_name: ${POSTGRES_CONTAINER_NAME:-home-library-postgres-prod}
+    environment:
+      # Database configuration - used by PostgreSQL container
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+      - postgres_logs_prod:/var/log/postgresql
+    networks:
+      - ${NETWORK_NAME:-home-library-network-prod}
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-home-library}',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # NestJS Application from Docker Hub
+  app:
+    image: ${APP_IMAGE:-freennnn/nodejs2025q2-service-app:latest}
+    container_name: ${APP_CONTAINER_NAME:-home-library-app-prod}
+    # making variables from .env file (which are available to the docker compose) available to the app container
+    environment:
+      # Application configuration - used by NestJS app
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${PORT}
+      # override DATABASE_URL to use container name ('postgres') as host, instead of localhost,
+      # where local postgres db in development could be running (without docker).
+      # We can use interpolated values here (contrary to .env file
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # JWT configuration - used by NestJS app
+      - CRYPT_SALT=${CRYPT_SALT}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_SECRET_REFRESH_KEY=${JWT_SECRET_REFRESH_KEY}
+      - TOKEN_EXPIRE_TIME=${TOKEN_EXPIRE_TIME}
+      - TOKEN_REFRESH_EXPIRE_TIME=${TOKEN_REFRESH_EXPIRE_TIME}
+    ports:
+      - '${PORT:-4000}:${PORT:-4000}'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ${NETWORK_NAME:-home-library-network-prod}
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost:${PORT:-4000}/user',
+          '||',
+          'exit',
+          '1',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+# Production volumes (persistent data)
+volumes:
+  postgres_data_prod:
+    driver: local
+  postgres_logs_prod:
+    driver: local
+
+# Production network (isolated)
+networks:
+  home-library-network-prod:
+    driver: bridge
+    name: ${NETWORK_NAME:-home-library-network-prod}

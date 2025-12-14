@@ -1,100 +1,169 @@
 # Home Library Service
 
-## Prerequisites
+NestJS music library API with PostgreSQL database, containerized with Docker.
 
-- Git - [Download & Install Git](https://git-scm.com/downloads).
-- Node.js - [Download & Install Node.js](https://nodejs.org/en/download/) and the npm package manager.
+## Quick Start
 
-## Downloading
+### Docker (Recommended)
 
 ```bash
-git clone <https://github.com/freennnn/nodejs2025Q2-service>
+# Development
+npm run docker:build:dev
+
+# Production
+npm run docker:build:prod
+
+# Stop containers
+npm run docker:down
 ```
 
-## Installing NPM modules
+The API will be available at `http://localhost:4000`
+
+## Running the Application
+
+### Option 1: Full Docker Setup
 
 ```bash
+# Development with hot reload
+npm run docker:up:dev
+
+# Production
+npm run docker:up:prod
+```
+
+### Option 2: Hybrid Mode (Database in Docker, App Locally)
+
+Useful for running tests or local development:
+
+```bash
+# Start database in Docker
+npm run dev:db
+
+# Setup Prisma and start app locally
+npm run dev:hybrid
+```
+
+This runs:
+- PostgreSQL in Docker container
+- NestJS app locally (connects to Docker database)
+- Prisma migrations and code generation
+
+### Option 3: Local Development (No Docker)
+
+Requires local PostgreSQL installation:
+
+```bash
+# Install dependencies
 npm install
-```
 
-## Running application
+# Setup database
+npm run dev:setup
 
-```bash
-npm run start
-```
-or
-```bash
+# Start app
 npm run start:dev
 ```
 
-To view interactive API documentation, you can:
+## Running Tests
 
-1. **Online**: Copy `doc/api.yaml` content to <https://editor.swagger.io/>
-2. **VS Code**: Install "Swagger Viewer" extension and preview the YAML file
-3. **Browser**: After starting the app on port (4000 as default) you can open
-in your browser OpenAPI documentation by typing <http://localhost:4000/doc/>.
+**Prerequisites:** The application must be running and accessible at `http://localhost:4000`
 
-## API Endpoints
-
-The application provides REST API endpoints for managing:
-
-- **Users** (`/user`) - Create, read, update, delete users
-- **Tracks** (`/track`) - Manage music tracks with artist/album references
-- **Albums** (`/album`) - Manage music albums with artist references
-- **Artists** (`/artist`) - Manage music artists
-- **Favorites** (`/favs`) - Add/remove tracks, albums, and artists to/from favorites
-
-All endpoints support standard CRUD operations. See the OpenAPI documentation for detailed API specifications.
-
-## Testing
-
-**Prerequisites:**
-Before running tests, ensure the application is set up and running:
+### Test Modes
 
 ```bash
-# 1. Install dependencies
-npm install
-
-# 2. Start the application in development mode (in a separate terminal)
-npm run start:dev
-```
-
-After application is running, open a new terminal and run tests:
-
-To run all tests without authorization
-
-```bash
+# Run all tests (without auth)
 npm run test
+
+# Run all tests (with auth)
+npm run test:auth
+
+# Run specific test suite
+npm run test -- <path-to-suite>
+npm run test:auth -- <path-to-suite>
+
+# Run refresh token tests
+npm run test:refresh
 ```
 
-To run only one of all test suites
+### Running Tests with Docker
+
+Tests work with Docker setup since the app container exposes port 4000:
 
 ```bash
-npm run test -- <path to suite>
-```
+# Start app in Docker
+npm run docker:up:dev
 
-To run all test with authorization
-
-```bash
+# In another terminal, run tests
 npm run test:auth
 ```
 
-To run only specific test suite with authorization
+### Running Tests with Hybrid Mode
+
+Hybrid mode is ideal for testing - database in Docker, app runs locally:
 
 ```bash
-npm run test:auth -- <path to suite>
+# Start database and app locally
+npm run dev:hybrid
+
+# In another terminal, run tests
+npm run test:auth
 ```
 
-### Auto-fix and format
+## API Documentation
+
+- **Swagger UI**: `http://localhost:4000/doc` (when app is running)
+- **OpenAPI Spec**: `doc/api.yaml`
+
+## Environment Variables
+
+Create `.env.dev` or `.env.prod` files with:
 
 ```bash
-npm run lint
+# Database
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/home-library?schema=public
+POSTGRES_DB=home-library
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+
+# Application
+PORT=4000
+NODE_ENV=development
+
+# JWT
+JWT_SECRET_KEY=your-secret-key
+JWT_SECRET_REFRESH_KEY=your-refresh-secret
+TOKEN_EXPIRE_TIME=30m
+TOKEN_REFRESH_EXPIRE_TIME=7d
+
+# Password Hashing
+CRYPT_SALT=10
+
+# Logging
+LOG_LEVEL=INFO
+LOG_DIR=./logs
+LOG_MAX_FILE_SIZE=1024
 ```
 
-```bash
-npm run format
-```
+## Available Scripts
 
-### Debugging in VSCode
+| Command | Description |
+|---------|-------------|
+| `npm run docker:up:dev` | Start dev containers |
+| `npm run docker:build:dev` | Build and start dev containers |
+| `npm run docker:up:prod` | Start production containers |
+| `npm run docker:build:prod` | Build and start prod containers |
+| `npm run docker:down` | Stop all containers |
+| `npm run dev:hybrid` | Database in Docker, app locally |
+| `npm run start:dev` | Start app locally (dev mode) |
+| `npm run test` | Run tests without auth |
+| `npm run test:auth` | Run tests with auth |
+| `npm run lint` | Lint and auto-fix |
+| `npm run format` | Format code |
 
-For more information, visit: <https://code.visualstudio.com/docs/editor/debugging>
+## Features
+
+- RESTful API for Users, Artists, Albums, Tracks, Favorites
+- JWT Authentication with Bearer tokens
+- PostgreSQL with Prisma ORM
+- Docker containerization
+- Comprehensive logging
+- OpenAPI/Swagger documentation

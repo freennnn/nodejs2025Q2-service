@@ -1,87 +1,76 @@
-import {
-  Injectable,
-  NotFoundException,
-  Inject,
-  forwardRef,
-} from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
-import { Album } from './album.interface';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { Album } from '../../generated/prisma';
 import { CreateAlbumDto } from './dto/create-album.dto';
 import { UpdateAlbumDto } from './dto/update-album.dto';
-import { TracksService } from '../tracks/tracks.service';
-import { FavoritesService } from '../favorites/favorites.service';
 
 @Injectable()
 export class AlbumsService {
-  private albums: Album[] = [];
+  constructor(private readonly prisma: PrismaService) {}
 
-  constructor(
-    @Inject(forwardRef(() => TracksService))
-    private readonly tracksService: TracksService,
-    @Inject(forwardRef(() => FavoritesService))
-    private readonly favoritesService: FavoritesService,
-  ) {}
-
-  findAll(): Album[] {
-    return this.albums;
+  async findAll(): Promise<Album[]> {
+    return this.prisma.album.findMany();
   }
 
-  findOne(id: string): Album {
-    const album = this.albums.find((album) => album.id === id);
+  async findOne(id: string): Promise<Album> {
+    const album = await this.prisma.album.findUnique({
+      where: { id },
+    });
+
     if (!album) {
       throw new NotFoundException(`Album with id ${id} not found`);
     }
-    return album;
-  }
-
-  create(createAlbumDto: CreateAlbumDto): Album {
-    const newAlbum: Album = {
-      id: uuidv4(),
-      name: createAlbumDto.name,
-      year: createAlbumDto.year,
-      artistId: createAlbumDto.artistId || null,
-    };
-
-    this.albums.push(newAlbum);
-    return newAlbum;
-  }
-
-  update(id: string, updateAlbumDto: UpdateAlbumDto): Album {
-    const album = this.findOne(id);
-
-    if (updateAlbumDto.name !== undefined) {
-      album.name = updateAlbumDto.name;
-    }
-    if (updateAlbumDto.year !== undefined) {
-      album.year = updateAlbumDto.year;
-    }
-    if (updateAlbumDto.artistId !== undefined) {
-      album.artistId = updateAlbumDto.artistId;
-    }
 
     return album;
   }
 
-  remove(id: string): void {
-    const albumIndex = this.albums.findIndex((album) => album.id === id);
-    if (albumIndex === -1) {
-      throw new NotFoundException(`Album with id ${id} not found`);
-    }
-
-    // Remove album from the array
-    this.albums.splice(albumIndex, 1);
-
-    // Cascade delete: remove from favorites and set references to null
-    this.favoritesService.removeAlbumFromFavoritesIfExists(id);
-    this.tracksService.removeAlbumReferences(id);
-  }
-
-  // Method to remove artist references when an artist is deleted
-  removeArtistReferences(artistId: string): void {
-    this.albums.forEach((album) => {
-      if (album.artistId === artistId) {
-        album.artistId = null;
-      }
+  async create(createAlbumDto: CreateAlbumDto): Promise<Album> {
+    return this.prisma.album.create({
+      data: {
+        name: createAlbumDto.name,
+        year: createAlbumDto.year,
+        artistId: createAlbumDto.artistId ?? null,
+      },
     });
   }
+
+  async update(id: string, updateAlbumDto: UpdateAlbumDto): Promise<Album> {
+    try {
+      return await this.prisma.album.update({
+        where: { id },
+        data: {
+          ...updateAlbumDto,
+          // Handle nullable foreign key type conversion
+          ...(updateAlbumDto.artistId !== undefined && {
+            artistId: updateAlbumDto.artistId ?? null,
+          }),
+        },
+      });
+    } catch (error) {
+      // Prisma throws P2025 when record is not found
+      if (error.code === 'P2025') {
+        throw new NotFoundException(`Album with id ${id} not found`);
+      }
+      throw error;
+    }
+  }
+
+  async remove(id: string): Promise<void> {
+    try {
+      await this.prisma.album.delete({
+        where: { id },
+      });
+      // No manual cascade deletion needed - Prisma handles it automatically:
+      // - FavoriteAlbum records: CASCADE deleted
+      // - Tracks: albumId set to NULL
+    } catch (error) {
+      // Prisma throws P2025 when record is not found
+      if (error.code === 'P2025') {
+        throw new NotFoundException(`Album with id ${id} not found`);
+      }
+      throw error;
+    }
+  }
+
+  // removeArtistReferences method removed - Prisma handles this with onDelete: SetNull
 }
